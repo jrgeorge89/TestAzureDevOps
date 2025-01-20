@@ -1,0 +1,93 @@
+trigger:
+  branches:
+    include:
+    - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  artifactName: 'app.zip'
+
+stages:
+- stage: TerraformValidation
+  jobs:
+  - job: ValidateTerraform
+    displayName: 'Validación de Terraform'
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.x'
+        addToPath: true
+
+    - script: |
+        pip install --upgrade pip
+        pip install azure-cli
+        pip install terraform
+      displayName: 'Instalar Azure CLI y Terraform'
+
+    - script: |
+        az login --service-principal -u $(azureServicePrincipalId) -p $(azureServicePrincipalPassword) --tenant $(azureTenantId)
+      displayName: 'Iniciar sesión en Azure CLI'
+
+    - script: |
+        terraform init
+        terraform validate
+      displayName: 'Inicializar y validar Terraform'
+
+- stage: TerraformPlan
+  jobs:
+  - job: PlanTerraform
+    displayName: 'Planificación de Terraform'
+    steps:
+    - script: |
+        az login --service-principal -u $(azureServicePrincipalId) -p $(azureServicePrincipalPassword) --tenant $(azureTenantId)
+      displayName: 'Iniciar sesión en Azure CLI'
+
+    - script: |
+        terraform init
+        terraform plan -out=tfplan -var "resource_group_name=$(resourceGroupName)" -var "storage_account_name=$(storageAccountName)" -var "container_name=$(containerName)" -var "location=$(location)"
+      displayName: 'Planificar Terraform'
+
+    - publish: tfplan
+      artifact: terraform-plan
+      displayName: 'Publicar Plan de Terraform'
+
+- stage: TerraformApply
+  dependsOn: TerraformPlan
+  jobs:
+  - job: ApplyTerraform
+    displayName: 'Aplicación de Terraform'
+    steps:
+    - download: current
+      artifact: terraform-plan
+      displayName: 'Descargar Plan de Terraform'
+
+    - script: |
+        az login --service-principal -u $(azureServicePrincipalId) -p $(azureServicePrincipalPassword) --tenant $(azureTenantId)
+      displayName: 'Iniciar sesión en Azure CLI'
+
+    - script: |
+        terraform apply -auto-approve tfplan
+      displayName: 'Aplicar Plan de Terraform'
+
+- stage: PackageArtifact
+  jobs:
+  - job: PackageAndUpload
+    displayName: 'Empaquetado y Subida de Artefactos'
+    steps:
+    - script: |
+        echo "Hello, this is a static file." > index.html
+      displayName: 'Crear archivo index.html'
+
+    - script: |
+        zip -r $(artifactName) index.html
+      displayName: 'Empaquetar artefacto en $(artifactName)'
+
+    - script: |
+        az login --service-principal -u $(azureServicePrincipalId) -p $(azureServicePrincipalPassword) --tenant $(azureTenantId)
+      displayName: 'Iniciar sesión en Azure CLI'
+
+    - script: |
+        az storage blob upload --account-name $(storageAccountName) --container-name $(containerName) --name $(artifactName) --file $(artifactName)
+      displayName: 'Subir artefacto a Blob Storage'

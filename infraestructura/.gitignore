@@ -1,0 +1,11 @@
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform.tfvars
+
+# VS Code
+.vscode/
+
+# Otros archivos sensibles
+.env
