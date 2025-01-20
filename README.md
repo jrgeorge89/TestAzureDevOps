@@ -118,7 +118,7 @@ Para asegurar la seguridad de las credenciales, se utilizan variables secretas e
 
 La infraestructura desplegada incluye:
 
-**Grupo de Recursos:**: techtest-resources
-**Cuenta de Almacenamiento:**: techteststoracc
-**Contenedor de Almacenamiento:**: content
-**Blob Storage:**: index.html
+    * **Grupo de Recursos:**: techtest-resources
+    * **Cuenta de Almacenamiento:**: techteststoracc
+    * **Contenedor de Almacenamiento:**: content
+    * **Blob Storage:**: index.html
